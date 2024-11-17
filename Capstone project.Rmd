@@ -1,0 +1,320 @@
+---
+title: "Google Data Analysis project 2024"
+author: "Fernando Garcia"
+date: "2024-10-22"
+output: html_document
+---
+<div style="text-align: justify">
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+##### My capstone project is the result from a Google Certificate program in an 8 course series gaining in-demand skills such as:
+
+* Data    Analysis
+* Data visualization
+* Data cleaninig
+* Data collection
+* SQL language
+* R language
+
+**Case study: How does a bike_share navigate speedy success**
+
+
+In this case study, I work for a fictional company, Cyclistic, along with some key team members. In order to answer the business questions, follow the steps of the data analysis process: Ask, Prepare, Process, Analyze, Share, and Act.
+
+Scenario:
+I am a junior data analyst working on the marketing analyst team at Cyclistic, a bike-share company in Chicago. The director of marketing believes the company’s future success depends on maximizing the number of annual memberships. Therefore, my team wants to understand how casual riders and annual members use Cyclistic bikes differently. From these insights, your team will design a new marketing strategy to convert casual riders into annual members. But first, Cyclistic executives must approve your recommendations, so they must be backed up with compelling data insights and professional data visualizations.
+
+**Key information**
+
+In 2016, Cyclistic launched a successful bike-share offering. Since then, the program has grown to a fleet of 5,824 bicycles that are geotracked and locked into a network of 692 stations across Chicago. The bikes can be unlocked from one station and returned to any other station in the system anytime.
+
+Until now, Cyclistic’s marketing strategy relied on building general awareness and appealing to broad consumer segments. One approach that helped make these things possible was the flexibility of its pricing plans:
+
+* single-ride passes
+* full-day passes
+* annual memberships
+
+Customers who purchase single-ride or full-day passes are referred to as casual riders. Customers who purchase annual memberships are Cyclistic members. Cyclistic’s finance analysts have concluded that annual members are much more profitable than casual riders. Although the pricing flexibility helps Cyclistic attract more customers,
+The Director of Marketing believes that maximizing the number of annual members will be key to future growth.
+Rather than creating a marketing campaign that targets all-new customers, the Director believes there is a solid opportunity to convert casual riders into members. She notes that casual riders are already aware of the Cyclistic program and have chosen Cyclistic for their mobility needs.
+
+##### *Business task*
+
+**How do annual members and casual riders use Cyclistic bikes differently?**
+
+
+This case study will use the **Ask**, **Prepare**, **process**, **Analyze**, **Share** and **Act** phases to answer the business task.
+
+
+
+##### **Ask phase**
+
+The following questions will help us determine what information will I need to complete this task.
+
+* What is the problem the business is trying to solve?
+* Do we have information from our customer from previous years?
+* Does the information was gathered from us or from a second or third party?
+
+##### **Prepare phase**
+
+In order to prepare my data, first I need to know the following:
+
+* Identify data sources
+* Find the data needed to answer the Business task
+* Verify that the data is useful
+
+The data sources that will be used are `Divvy_Trips_2019_Q1` and `Divvy_Trips_2020_Q1`
+
+
+##### **Process phase**
+
+In this phase, the aim is to clean and transform by using R Programming and if I encounter errors or inaccuracies, they must be addressed either to eliminate or update the data.
+
+I used the packages and library from `tidyverse`, `ggplot2` and `readr`as they meet the requirements to process the data.
+
+The `tidyverse`library helps me to manage data
+The `ggplot`library helps me to plot the data
+The `readr`library helps me to upload .csv files
+
+
+```{r libraries}
+
+library(tidyverse)
+library(ggplot2)
+library(readr)
+
+```
+
+**Step 1**
+
+Upload the data sets (csv files) into my environment `Divvy_Trips_2019_Q1` and `Divvy_Trips_2020_Q1` and proceed to rename them into a more readable names.
+
+```{r Trips}
+q1_2019 <- read_csv("Divvy_Trips_2019_Q1.csv")
+q1_2020 <- read_csv("Divvy_Trips_2020_Q1.csv")
+```
+
+**Step 2**
+
+Compare column names to see if they match by using the `colnames` and if not, make them match perfectly so I can join them into a single file.
+
+```{r}
+colnames(q1_2019)
+colnames(q1_2020)
+```
+
+**Step 3**
+
+Rename `q1_2019` columns to make them consistent with the `q1_2020` columns.
+
+```{r}
+(q1_2019 <- rename(q1_2019
+                   ,ride_id = trip_id
+                   ,rideable_type = bikeid
+                   ,started_at = start_time
+                   ,ended_at = end_time
+                   ,start_station_name = from_station_name
+                   ,start_station_id = from_station_id
+                   ,end_station_name = to_station_name
+                   ,end_station_id = to_station_id
+                   ,member_casual = usertype
+                   ))
+```
+
+**Step 4**
+
+Inspect the data frames and look for errors or problems that might result a failed analysis.
+
+```{r}
+str(q1_2019)
+str(q1_2020)
+```
+
+*ride_id* and *rideable_type* specification needs to be changed to col_character.
+
+```{r}
+q1_2019 <-  mutate(q1_2019, ride_id = as.character(ride_id)
+                   ,rideable_type = as.character(rideable_type)) 
+```
+
+**Step 5**
+
+Stack data into one data frame
+
+```{r}
+all_trips <- bind_rows(q1_2019, q1_2020)
+```
+
+Still the data frame has some information that needs to be removes as they dont impact our Business task.
+
+```{r}
+all_trips <- all_trips %>%  
+  select(-c(start_lat, start_lng, end_lat, end_lng, birthyear, gender,  "tripduration"))
+```
+
+##### **Analyze phase**
+
+**Step 1**
+
+Review the table that has been created to inspect for errors or problems that need to be resolved by using 
+
+* colnames
+* nrow
+* dim
+* head
+* str
+* summary
+
+After reviewing the data, some problems were found and needs to be fixed.
+
+* The "member_casual" column has two different names (member and Subscriber) and two names for casual_riders (Customer and casual) - It only needs to be 2 labels
+
+* It lacks information that can provide additional data - I will include day, month and year columns
+
+* There is no tripduration in the q1_2020 data -  I will include a ride_length column
+
+* There are several negative rides and some bikes that the company took out of circulation - I will delete the data and create a new data set with the new data
+
+```{r}
+all_trips <-  all_trips %>% 
+  mutate(member_casual = recode(member_casual
+                                ,"Subscriber" = "member"
+                                ,"Customer" = "casual"))
+
+all_trips$date <- as.Date(all_trips$started_at) #The default format is yyyy-mm-dd
+all_trips$month <- format(as.Date(all_trips$date), "%m")
+all_trips$day <- format(as.Date(all_trips$date), "%d")
+all_trips$year <- format(as.Date(all_trips$date), "%Y")
+all_trips$day_of_week <- format(as.Date(all_trips$date), "%A")
+
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+
+is.factor(all_trips$ride_length)
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+
+```
+
+Considering that there is a new cleansed data set, analysis must be done in order to know kew aspects of the data.
+
+```{r}
+summary(all_trips_v2$ride_length)
+```
+
+Now we can see the average ride time by day for members vs casual users and order them in the correct order.
+
+```{r}
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+
+aggregate(all_trips_v2$ride_length ~ all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+```
+
+Now its time to analyze the data type by weekday
+
+```{r}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>%
+  group_by(member_casual, weekday) %>%
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+    arrange(member_casual, weekday)
+```
+
+##### **Share phase**
+
+I will add some visualizations to represent:
+
+* Rides by rider type
+
+Casual members represents the biggest use for Bicycles.
+
+```{r rides by rideer type}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = number_of_rides, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+* Average duration
+
+This slide confirms that Casual riders ride for longer periods of time, even if its not only to commute.
+
+```{r average duration}
+all_trips_v2 %>% 
+  mutate(weekday = wday(started_at, label = TRUE)) %>% 
+  group_by(member_casual, weekday) %>% 
+  summarise(number_of_rides = n()
+            ,average_duration = mean(ride_length)) %>% 
+  arrange(member_casual, weekday)  %>% 
+  ggplot(aes(x = weekday, y = average_duration, fill = member_casual)) +
+  geom_col(position = "dodge")
+```
+
+
+I did some further analysis using **Tableau**, which can be seen on a Browser or directly into my Tableau profile.
+
+**Slide 1**
+
+As expected, Members rides along the week is are more stable due to the use primarily to commute to work.
+
+**Slide 2**
+
+While Members use the bicycle in a more steady way, theres a slight increase on weekends and Casual riders has a big increase on thursdays.
+
+**Slide 3**
+
+The biggest gap between both types of riders is on thursday.
+
+**Slide 4**
+
+Comparison between rider types per day of the week
+
+
+<div class='tableauPlaceholder' id='viz1729893227933' style='position: relative'><noscript><a href='#'><img alt=' ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bi&#47;Bicycleridesperweek2019-2020&#47;Hoja1&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='Bicycleridesperweek2019-2020&#47;Hoja1' /><param name='tabs' value='yes' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bi&#47;Bicycleridesperweek2019-2020&#47;Hoja1&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='es-ES' /></object></div>                
+
+```{js, embed code}                    
+var divElement = document.getElementById('viz1729893227933');                    
+var vizElement = divElement.getElementsByTagName('object')[0];                    vizElement.style.width='100%';vizElement.style.height=(divElement.offsetWidth*0.75)+'px';                    var scriptElement = document.createElement('script');                    
+scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';                    vizElement.parentNode.insertBefore(scriptElement, vizElement);                
+</script>               
+
+```
+
+
+##### **Act phase**
+
+Based on the analysis made I present my findings based on tha Business task question "How do annual members and casual riders use Cyclistic bikes differently?"
+
+Members use bicycles primarily to commute to work and travel short distances, this is shown by the little difference of the average rides throughtout the week and Casual riders travel longer distances, specially on thursdays.
+
+
+### **Recommendations**
+
+* Create a weekend membership starting on thursdays and ends in sundays to incentive casual riders to become Members
+
+* Create a Family plan to use only on Saturday and Sunday mornings on specific bicycle stations that are near parks
+
+* Create an app for Members where they can reserve a bicycle, view their rides and average time, nearby stations and holiday promotions to make them feel part of the Bicycle family.
+
+
+
+
+
+
+
+
+
+
+
